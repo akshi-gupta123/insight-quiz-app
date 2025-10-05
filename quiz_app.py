@@ -543,9 +543,9 @@ def get_explanation_time_remaining():
     """Calculate remaining time for explanation display"""
     if st.session_state.explanation_start_time:
         elapsed = time.time() - st.session_state.explanation_start_time
-        remaining = max(0, 7 - int(elapsed))
+        remaining = max(0, 10 - int(elapsed))
         return remaining
-    return 7
+    return 10
 
 # Main app
 st.markdown("<h1>Insight Engine Booth</h1>", unsafe_allow_html=True)
@@ -631,9 +631,12 @@ elif st.session_state.quiz_started and not st.session_state.quiz_completed:
                         'question': question_data['Question'],
                         'selected': None,
                         'correct': question_data['Correct_Answer'],
+                        'is_correct': False,
+                        'explanation': question_data['Explanation'],
                         'timed_out': True
                     })
                 st.session_state.question_submitted = True
+                st.session_state.explanation_start_time = time.time()
                 st.rerun()
         
         # Question card
@@ -675,6 +678,7 @@ elif st.session_state.quiz_started and not st.session_state.quiz_completed:
                         })
                         
                         st.session_state.question_submitted = True
+                        st.session_state.explanation_start_time = time.time()
                         st.rerun()
                 
                 # Show answer feedback and explanation if submitted
@@ -707,6 +711,29 @@ elif st.session_state.quiz_started and not st.session_state.quiz_completed:
                             </div>
                         </div>
                     """, unsafe_allow_html=True)
+                    
+                    # Auto-proceed timer and manual button
+                    explanation_time_remaining = get_explanation_time_remaining()
+                    
+                    # Auto-proceed if time runs out
+                    if explanation_time_remaining <= 0:
+                        st.session_state.question_submitted = False
+                        st.session_state.current_question += 1
+                        
+                        if st.session_state.current_question < len(st.session_state.questions):
+                            st.session_state.start_time = time.time()
+                        else:
+                            st.session_state.quiz_completed = True
+                        st.rerun()
+                    else:
+                        # Show countdown timer
+                        st.markdown(f"""
+                            <div style="text-align: center; margin: 1rem 0;">
+                                <p style="color: #667eea; font-size: 1.1rem;">
+                                    Auto-proceeding in <strong>{explanation_time_remaining}</strong> seconds...
+                                </p>
+                            </div>
+                        """, unsafe_allow_html=True)
                     
                     # Next question button
                     st.markdown("<br>", unsafe_allow_html=True)
@@ -777,6 +804,7 @@ elif st.session_state.quiz_started and not st.session_state.quiz_completed:
                         })
                         
                         st.session_state.question_submitted = True
+                        st.session_state.explanation_start_time = time.time()
                         st.rerun()
                 
                 # Show answer feedback and explanation if submitted
@@ -810,6 +838,29 @@ elif st.session_state.quiz_started and not st.session_state.quiz_completed:
                         </div>
                     """, unsafe_allow_html=True)
                     
+                    # Auto-proceed timer and manual button
+                    explanation_time_remaining = get_explanation_time_remaining()
+                    
+                    # Auto-proceed if time runs out
+                    if explanation_time_remaining <= 0:
+                        st.session_state.question_submitted = False
+                        st.session_state.current_question += 1
+                        
+                        if st.session_state.current_question < len(st.session_state.questions):
+                            st.session_state.start_time = time.time()
+                        else:
+                            st.session_state.quiz_completed = True
+                        st.rerun()
+                    else:
+                        # Show countdown timer
+                        st.markdown(f"""
+                            <div style="text-align: center; margin: 1rem 0;">
+                                <p style="color: #667eea; font-size: 1.1rem;">
+                                    Auto-proceeding in <strong>{explanation_time_remaining}</strong> seconds...
+                                </p>
+                            </div>
+                        """, unsafe_allow_html=True)
+                    
                     # Next question button
                     st.markdown("<br>", unsafe_allow_html=True)
                     if st.button("➡️ Next Question", key=f"next_{current_q_idx}"):
@@ -832,8 +883,12 @@ elif st.session_state.quiz_started and not st.session_state.quiz_completed:
                 </script>
             """, unsafe_allow_html=True)
         
-        # Auto-refresh for timer (only if not submitted)
+        # Auto-refresh for timer (only if not submitted) or explanation timer
         if not st.session_state.question_submitted:
+            time.sleep(1)
+            st.rerun()
+        elif st.session_state.question_submitted and st.session_state.explanation_start_time:
+            # Auto-refresh for explanation timer
             time.sleep(1)
             st.rerun()
     
