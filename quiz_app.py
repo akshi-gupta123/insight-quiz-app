@@ -254,14 +254,39 @@ def load_logos_data():
     import requests
     
     try:
-        # Get URLs from secrets
-        logos_data_url = st.secrets["LogosData"]
-        logos_base_url = st.secrets["Logos"]
+        # Get base URL from secrets and derive specific URLs
+        try:
+            base_url = st.secrets["base_url"]
+            logos_data_url = base_url + "logos_data.json"
+            logos_base_url = base_url + "logos/"
+        except KeyError as secret_error:
+            st.error(f"Secret configuration error: {secret_error}")
+            st.error("Available secrets keys: " + str(list(st.secrets.keys()) if hasattr(st.secrets, 'keys') else "No secrets found"))
+            return []
         
         # Load logos data from GitHub URL
-        response = requests.get(logos_data_url)
+        response = requests.get(logos_data_url, timeout=10)
         response.raise_for_status()  # Raises an HTTPError for bad responses
-        logos_data = response.json()
+        
+        # Debug information for deployment
+        if response.status_code != 200:
+            st.error(f"HTTP Error: {response.status_code} - {response.reason}")
+            return []
+        
+        # Check content type
+        content_type = response.headers.get('content-type', '')
+        if 'application/json' not in content_type and 'text/plain' not in content_type:
+            st.error(f"Unexpected content type: {content_type}")
+            st.error(f"Response preview: {response.text[:200]}")
+            return []
+        
+        # Try to parse JSON
+        try:
+            logos_data = response.json()
+        except json.JSONDecodeError as json_err:
+            st.error(f"JSON parsing failed: {json_err}")
+            st.error(f"Response content (first 500 chars): {response.text[:500]}")
+            return []
         
         # Update image paths to use GitHub raw URLs
         for logo in logos_data:
@@ -275,11 +300,12 @@ def load_logos_data():
     except KeyError as e:
         st.error(f"Missing required secret configuration: {e}. Please check your secrets.toml file.")
         return []
+    except requests.exceptions.Timeout:
+        st.error("Request timed out. Please check your internet connection and try again.")
+        return []
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching logos data from GitHub: {e}")
-        return []
-    except json.JSONDecodeError as e:
-        st.error(f"Error parsing logos data JSON: {e}")
+        st.error(f"URL attempted: {logos_data_url}")
         return []
     except Exception as e:
         st.error(f"Unexpected error loading logos data: {e}")
@@ -301,21 +327,48 @@ def load_quiz_data():
     import requests
     
     try:
-        # Get URL from secrets
-        quiz_data_url = st.secrets["QuizData"]
+        # Get base URL from secrets and derive specific URL
+        try:
+            base_url = st.secrets["base_url"]
+            quiz_data_url = base_url + "quiz_data.json"
+        except KeyError as secret_error:
+            st.error(f"Secret configuration error: {secret_error}")
+            st.error("Available secrets keys: " + str(list(st.secrets.keys()) if hasattr(st.secrets, 'keys') else "No secrets found"))
+            return pd.DataFrame()
         
         # Load quiz data from GitHub URL
-        response = requests.get(quiz_data_url)
+        response = requests.get(quiz_data_url, timeout=10)
         response.raise_for_status()  # Raises an HTTPError for bad responses
-        data = response.json()
+        
+        # Debug information for deployment
+        if response.status_code != 200:
+            st.error(f"HTTP Error: {response.status_code} - {response.reason}")
+            return pd.DataFrame()
+        
+        # Check content type
+        content_type = response.headers.get('content-type', '')
+        if 'application/json' not in content_type and 'text/plain' not in content_type:
+            st.error(f"Unexpected content type: {content_type}")
+            st.error(f"Response preview: {response.text[:200]}")
+            return pd.DataFrame()
+        
+        # Try to parse JSON
+        try:
+            data = response.json()
+        except json.JSONDecodeError as json_err:
+            st.error(f"JSON parsing failed: {json_err}")
+            st.error(f"Response content (first 500 chars): {response.text[:500]}")
+            return pd.DataFrame()
+            
     except KeyError as e:
         st.error(f"Missing required secret configuration: {e}. Please check your secrets.toml file.")
         return pd.DataFrame()
+    except requests.exceptions.Timeout:
+        st.error("Request timed out. Please check your internet connection and try again.")
+        return pd.DataFrame()
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching quiz data from GitHub: {e}")
-        return pd.DataFrame()
-    except json.JSONDecodeError as e:
-        st.error(f"Error parsing quiz data JSON: {e}")
+        st.error(f"URL attempted: {quiz_data_url}")
         return pd.DataFrame()
     except Exception as e:
         st.error(f"Unexpected error loading quiz data: {e}")
