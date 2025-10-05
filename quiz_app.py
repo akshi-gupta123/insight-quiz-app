@@ -249,27 +249,32 @@ st.markdown("""
 # Load logos data
 @st.cache_data
 def load_logos_data():
-    """Load logos data from GitHub URL"""
+    """Load logos data from GitHub URL using secrets configuration"""
     import json
     import requests
     
     try:
+        # Get URLs from secrets
+        logos_data_url = st.secrets["urls"]["logos_data_url"]
+        logos_base_url = st.secrets["urls"]["logos_base_url"]
+        
         # Load logos data from GitHub URL
-        url = "https://raw.githubusercontent.com/Abhishek-Garg-Ai/Fruit-Finder/main/lib/logos_data.json"
-        response = requests.get(url)
+        response = requests.get(logos_data_url)
         response.raise_for_status()  # Raises an HTTPError for bad responses
         logos_data = response.json()
         
         # Update image paths to use GitHub raw URLs
-        base_url = "https://raw.githubusercontent.com/Abhishek-Garg-Ai/Fruit-Finder/main/lib/logos/"
         for logo in logos_data:
             if 'image' in logo:
                 # Extract filename from the original path
                 filename = logo['image'].split('/')[-1]
-                logo['image'] = base_url + filename
+                logo['image'] = logos_base_url + filename
         
         return logos_data
     
+    except KeyError as e:
+        st.error(f"Missing required secret configuration: {e}. Please check your secrets.toml file.")
+        return []
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching logos data from GitHub: {e}")
         return []
@@ -296,11 +301,16 @@ def load_quiz_data():
     import requests
     
     try:
+        # Get URL from secrets
+        quiz_data_url = st.secrets["urls"]["quiz_data_url"]
+        
         # Load quiz data from GitHub URL
-        url = "https://raw.githubusercontent.com/Abhishek-Garg-Ai/Fruit-Finder/main/lib/quiz_data.json"
-        response = requests.get(url)
+        response = requests.get(quiz_data_url)
         response.raise_for_status()  # Raises an HTTPError for bad responses
         data = response.json()
+    except KeyError as e:
+        st.error(f"Missing required secret configuration: {e}. Please check your secrets.toml file.")
+        return pd.DataFrame()
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching quiz data from GitHub: {e}")
         return pd.DataFrame()
