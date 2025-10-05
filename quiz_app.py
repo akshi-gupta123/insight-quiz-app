@@ -255,8 +255,8 @@ def load_logos_data():
     
     try:
         # Get URLs from secrets
-        logos_data_url = st.secrets["urls"]["logos_data_url"]
-        logos_base_url = st.secrets["urls"]["logos_base_url"]
+        logos_data_url = st.secrets["LogosData"]
+        logos_base_url = st.secrets["Logos"]
         
         # Load logos data from GitHub URL
         response = requests.get(logos_data_url)
@@ -302,7 +302,7 @@ def load_quiz_data():
     
     try:
         # Get URL from secrets
-        quiz_data_url = st.secrets["urls"]["quiz_data_url"]
+        quiz_data_url = st.secrets["QuizData"]
         
         # Load quiz data from GitHub URL
         response = requests.get(quiz_data_url)
