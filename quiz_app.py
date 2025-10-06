@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 import random
 import os
+import json
 
 # Page configuration
 st.set_page_config(
@@ -248,6 +249,75 @@ st.markdown("""
         scroll-behavior: smooth;
     }
     
+    /* Leaderboard specific styles */
+    .leaderboard-card {
+        background: white;
+        padding: 1rem;
+        border-radius: 12px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        margin: 0.5rem 0;
+    }
+    
+    .gold-rank {
+        background: linear-gradient(135deg, #FFD700, #FFEC8B);
+        border: 2px solid #FFD700;
+    }
+    
+    .silver-rank {
+        background: linear-gradient(135deg, #C0C0C0, #E8E8E8);
+        border: 2px solid #C0C0C0;
+    }
+    
+    .bronze-rank {
+        background: linear-gradient(135deg, #CD7F32, #E8B886);
+        border: 2px solid #CD7F32;
+    }
+    
+    .normal-rank {
+        background: white;
+        border: 1px solid #667eea;
+    }
+    
+    .rank-badge {
+        font-size: 1.2rem;
+        font-weight: bold;
+        text-align: center;
+        margin-right: 0.8rem;
+        min-width: 40px;
+    }
+    
+    .stats-card {
+        background: rgba(255,255,255,0.95);
+        padding: 0.8rem;
+        border-radius: 8px;
+        margin: 0.3rem;
+        text-align: center;
+    }
+    
+    .participant-name {
+        font-size: 1.1rem;
+        margin: 0;
+        color: #2d3748;
+    }
+    
+    .participant-email {
+        font-size: 0.8rem;
+        margin: 0;
+        color: #718096;
+    }
+    
+    .participant-score {
+        font-size: 1.1rem;
+        margin: 0;
+        color: #667eea;
+    }
+    
+    .participant-details {
+        font-size: 0.8rem;
+        margin: 0;
+        color: #718096;
+    }
+    
     </style>
     
     <script>
@@ -409,6 +479,7 @@ if 'quiz_started' not in st.session_state:
     st.session_state.explanation_start_time = None
     st.session_state.explanation_data = None
     st.session_state.question_submitted = False
+    st.session_state.current_page = "quiz"  # Track current page
 
 # Functions for email tracking
 def get_attempted_emails():
@@ -547,446 +618,675 @@ def get_explanation_time_remaining():
         return remaining
     return 10
 
-# Main app
-st.markdown("<h1>Insight Engine Booth</h1>", unsafe_allow_html=True)
-
-# Email input screen
-if not st.session_state.quiz_started and not st.session_state.quiz_completed:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("""
-            <div class="question-card">
-                <h2 style="text-align: center; color: #667eea;">Welcome to the AI Quiz! 🧠</h2>
-                <p style="text-align: center; font-size: 1.1rem; color: #4a5568; margin: 1rem 0;">
-                    You'll have 20 to 25 seconds to answer each question.<br>
-                    <strong style="color: #e53e3e;">🎁 Exciting goodies will be provided to Winners!</strong><br>
-                    <strong style="color: #d69e2e;">⚠️ Rewards will be provided only to valid users, carefully fill your email.</strong><br>
-                    <strong style="color: #d69e2e;">⚠️ </strong> Remember to click the <strong>Submit Answer</strong> button for each question!<br><br>
-                    <strong>Ready to challenge yourself?</strong>
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        email = st.text_input("📧 Enter your email address:", placeholder="your.name@spglobal.com")
-        
-        if st.button("🚀 Start Quiz"):
-            if email:
-                email = email.strip()
-                if '@spglobal.com' in email.lower():
-                    # Check if email already attempted the quiz
-                    if has_email_attempted(email):
-                        st.error("🚫 This email has already attempted the quiz. Each user can only attempt once.")
-                    else:
-                        # Store the email in attempted emails
-                        store_email_attempt(email)
-                        st.session_state.email = email
-                        df = load_quiz_data()
-                        st.session_state.questions = select_random_questions(df, 6)
-                        st.session_state.quiz_started = True
-                        st.session_state.start_time = time.time()
-                        st.rerun()
-                else:
-                    st.error("⚠️ Please use a valid @spglobal.com email address!")
-            else:
-                st.error("⚠️ Please enter your email address!")
-
-# Quiz screen
-elif st.session_state.quiz_started and not st.session_state.quiz_completed:
-    current_q_idx = st.session_state.current_question
+# Add this function to store quiz results
+def store_quiz_result(email, score, total_questions, attempted_questions, correct_answers, answers_data, time_taken):
+    """Store quiz results in a JSON file"""
     
-    if current_q_idx < len(st.session_state.questions):
-        question_data = st.session_state.questions[current_q_idx]
+    result_data = {
+        "email": email,
+        "score": score,
+        "total_questions": total_questions,
+        "attempted_questions": attempted_questions,
+        "correct_answers": correct_answers,
+        "percentage": int((correct_answers / attempted_questions * 100)) if attempted_questions > 0 else 0,
+        "timestamp": datetime.now().isoformat(),
+        "time_taken_seconds": time_taken,
+        "answers": answers_data
+    }
+    
+    try:
+        # Try to read existing data
+        try:
+            with open('quiz_results.json', 'r') as f:
+                existing_data = json.load(f)
+        except FileNotFoundError:
+            existing_data = {"quiz_attempts": []}
         
-        # Progress indicator
-        progress = (current_q_idx) / len(st.session_state.questions)
-        st.progress(progress)
-        st.markdown(f"""
-            <div class="progress-text">
-                Question {current_q_idx + 1} of {len(st.session_state.questions)}
+        # Append new result
+        existing_data["quiz_attempts"].append(result_data)
+        
+        # Write back to file
+        with open('quiz_results.json', 'w') as f:
+            json.dump(existing_data, f, indent=2)
+            
+        return True
+    except Exception as e:
+        print(f"Error storing quiz result: {e}")
+        return False
+
+# Add this function to calculate time taken
+def calculate_total_time():
+    """Calculate total time taken for the quiz"""
+    if st.session_state.start_time:
+        return int(time.time() - st.session_state.start_time)
+    return 0
+
+# Leaderboard functions
+def load_quiz_results():
+    """Load quiz results from JSON file"""
+    try:
+        with open('quiz_results.json', 'r') as f:
+            data = json.load(f)
+        return data.get('quiz_attempts', [])
+    except FileNotFoundError:
+        st.error("No quiz results found. The quiz hasn't been taken yet.")
+        return []
+    except Exception as e:
+        st.error(f"Error loading quiz results: {e}")
+        return []
+
+def create_leaderboard_data(results):
+    """Create leaderboard data from results - show only best attempt per user"""
+    leaderboard_data = []
+    
+    # Group attempts by email and keep only the best attempt for each user
+    user_best_attempts = {}
+    
+    for result in results:
+        email = result['email']
+        percentage = result['percentage']
+        
+        # If this user doesn't exist yet, or this attempt is better, update their best attempt
+        if email not in user_best_attempts:
+            user_best_attempts[email] = result
+        else:
+            # Compare percentages, if equal compare by time (faster is better)
+            if percentage > user_best_attempts[email]['percentage']:
+                user_best_attempts[email] = result
+            elif percentage == user_best_attempts[email]['percentage']:
+                # If same percentage, take the faster attempt
+                if result['time_taken_seconds'] < user_best_attempts[email]['time_taken_seconds']:
+                    user_best_attempts[email] = result
+    
+    # Convert to list for leaderboard
+    for result in user_best_attempts.values():
+        # Extract username from email
+        email = result['email']
+        username = email.split('@')[0].replace('.', ' ').title()
+        
+        leaderboard_data.append({
+            'username': username,
+            'email': email,
+            'score': result['correct_answers'],
+            'total_questions': result['total_questions'],
+            'percentage': result['percentage'],
+            'attempted_questions': result['attempted_questions'],
+            'time_taken': result['time_taken_seconds'],
+            'timestamp': result['timestamp']
+        })
+    
+    return pd.DataFrame(leaderboard_data)
+
+def display_leaderboard():
+    """Display the leaderboard"""
+    st.markdown("<h1 style='color: white; text-align: center; margin-bottom: 1.5rem;'>🏆 AI Quiz Leaderboard</h1>", unsafe_allow_html=True)
+    
+    # Add navigation button to go back to quiz
+    col1, col2, col3 = st.columns([2, 1, 2])
+    with col2:
+        if st.button("🔙 Back to Quiz"):
+            st.session_state.current_page = "quiz"
+            st.query_params.clear()
+            st.rerun()
+    
+    results = load_quiz_results()
+    
+    if not results:
+        st.markdown("""
+            <div style='text-align: center; color: white; padding: 3rem;'>
+                <h3>No quiz results yet!</h3>
+                <p>Take the AI Quiz to see your name on the leaderboard.</p>
             </div>
         """, unsafe_allow_html=True)
+        return
+    
+    df = create_leaderboard_data(results)
+    
+    # Overall statistics - simplified
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown(f"""
+            <div class="stats-card">
+                <h4 style='margin: 0; color: #4a5568;'>Total Participants</h4>
+                <h3 style='margin: 0; color: #667eea;'>{len(df)}</h3>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        avg_score = df['percentage'].mean()
+        st.markdown(f"""
+            <div class="stats-card">
+                <h4 style='margin: 0; color: #4a5568;'>Average Score</h4>
+                <h3 style='margin: 0; color: #667eea;'>{avg_score:.1f}%</h3>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        best_score = df['percentage'].max()
+        st.markdown(f"""
+            <div class="stats-card">
+                <h4 style='margin: 0; color: #4a5568;'>Best Score</h4>
+                <h3 style='margin: 0; color: #667eea;'>{best_score}%</h3>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Sort by percentage (primary) and time taken (secondary)
+    df_sorted = df.sort_values(['percentage', 'time_taken'], ascending=[False, True])
+    
+    # Display leaderboard
+    for idx, (_, participant) in enumerate(df_sorted.iterrows(), 1):
+        if idx == 1:
+            card_class = "gold-rank"
+            rank_emoji = "🥇"
+        elif idx == 2:
+            card_class = "silver-rank"
+            rank_emoji = "🥈"
+        elif idx == 3:
+            card_class = "bronze-rank"
+            rank_emoji = "🥉"
+        else:
+            card_class = "normal-rank"
+            rank_emoji = f"#{idx}"
         
-        # Timer (only show if question not submitted)
-        if not st.session_state.question_submitted:
-            time_remaining = get_time_remaining()
-            timer_class = "timer warning" if time_remaining <= 5 else "timer"
-            timer_placeholder = st.empty()
-            timer_placeholder.markdown(f'<div class="{timer_class}">⏱️ {time_remaining}s</div>', unsafe_allow_html=True)
-            
-            # Auto-submit if time runs out
-            if time_remaining == 0:
-                if question_data.get('type') == 'single_logo_quiz':
-                    # For single logo quiz, store empty answer
-                    st.session_state.answers.append({
-                        'question': question_data['question'],
-                        'type': 'single_logo_quiz',
-                        'logo': question_data['logo'],
-                        'user_answer': '',
-                        'correct_answer': question_data['correct_answer'],
-                        'is_correct': False,
-                        'timed_out': True
-                    })
-                else:
-                    st.session_state.answers.append({
-                        'question': question_data['Question'],
-                        'selected': None,
-                        'correct': question_data['Correct_Answer'],
-                        'is_correct': False,
-                        'explanation': question_data['Explanation'],
-                        'timed_out': True
-                    })
-                st.session_state.question_submitted = True
-                st.session_state.explanation_start_time = time.time()
-                st.rerun()
-        
-        # Question card
-        col1, col2, col3 = st.columns([1, 3, 1])
-        with col2:
-            if question_data.get('type') == 'single_logo_quiz':
-                # Single logo quiz question (questions 7 and 8)
-                st.markdown(f"""
-                    <div class="question-card">
-                        <h2 style="color: #000000;">{question_data['question']}</h2>
+        # Create a single row for each participant
+        st.markdown(f"""
+            <div class='leaderboard-card {card_class}'>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center;">
+                        <div class='rank-badge'>{rank_emoji}</div>
+                        <div>
+                            <p class='participant-name'>{participant['username']}</p>
+                            <p class='participant-email'>{participant['email']}</p>
+                        </div>
                     </div>
-                """, unsafe_allow_html=True)
+                    <div style="text-align: right;">
+                        <p class='participant-score'>{participant['percentage']}%</p>
+                        <p class='participant-details'>
+                            {participant['score']}/{participant['total_questions']} • {participant['time_taken']}s
+                        </p>
+                    </div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+# Main app navigation
+def main():
+    # Check URL parameters for navigation
+    query_params = st.query_params
+    if 'page' in query_params and query_params['page'] == 'leaderboard':
+        st.session_state.current_page = "leaderboard"
+    
+    if st.session_state.current_page == "leaderboard":
+        display_leaderboard()
+        return
+    
+    # Original quiz app code
+    st.markdown("<h1>Insight Engine Booth</h1>", unsafe_allow_html=True)
+
+    # Email input screen
+    if not st.session_state.quiz_started and not st.session_state.quiz_completed:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown("""
+                <div class="question-card">
+                    <h2 style="text-align: center; color: #667eea;">Welcome to the AI Quiz! 🧠</h2>
+                    <p style="text-align: center; font-size: 1.1rem; color: #4a5568; margin: 1rem 0;">
+                        You'll have 20 to 25 seconds to answer each question.<br>
+                        <strong style="color: #e53e3e;">🎁 Exciting goodies will be provided to Winners!</strong><br>
+                        <strong style="color: #d69e2e;">⚠️ Rewards will be provided only to valid users, carefully fill your email.</strong><br>
+                        <strong style="color: #d69e2e;">⚠️ </strong> Remember to click the <strong>Submit Answer</strong> button for each question!<br><br>
+                        <strong>Ready to challenge yourself?</strong>
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            email = st.text_input("📧 Enter your email address:", placeholder="your.name@spglobal.com")
+            
+            if st.button("🚀 Start Quiz"):
+                if email:
+                    email = email.strip()
+                    if '@spglobal.com' in email.lower():
+                        # Check if email already attempted the quiz
+                        if has_email_attempted(email):
+                            st.error("🚫 This email has already attempted the quiz. Each user can only attempt once.")
+                        else:
+                            # Store the email in attempted emails
+                            store_email_attempt(email)
+                            st.session_state.email = email
+                            df = load_quiz_data()
+                            st.session_state.questions = select_random_questions(df, 6)
+                            st.session_state.quiz_started = True
+                            st.session_state.start_time = time.time()
+                            st.rerun()
+                    else:
+                        st.error("⚠️ Please use a valid @spglobal.com email address!")
+                else:
+                    st.error("⚠️ Please enter your email address!")
+
+    # Quiz screen
+    elif st.session_state.quiz_started and not st.session_state.quiz_completed:
+        current_q_idx = st.session_state.current_question
+        
+        if current_q_idx < len(st.session_state.questions):
+            question_data = st.session_state.questions[current_q_idx]
+            
+            # Progress indicator
+            progress = (current_q_idx) / len(st.session_state.questions)
+            st.progress(progress)
+            st.markdown(f"""
+                <div class="progress-text">
+                    Question {current_q_idx + 1} of {len(st.session_state.questions)}
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Timer (only show if question not submitted)
+            if not st.session_state.question_submitted:
+                time_remaining = get_time_remaining()
+                timer_class = "timer warning" if time_remaining <= 5 else "timer"
+                timer_placeholder = st.empty()
+                timer_placeholder.markdown(f'<div class="{timer_class}">⏱️ {time_remaining}s</div>', unsafe_allow_html=True)
                 
-                # Display the single logo in the center
-                col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
-                with col_img2:
-                    st.image(question_data['logo']['image'], width=200)
-                    user_input = st.text_input("Enter the logo name:", key=f"logo_{current_q_idx}", disabled=st.session_state.question_submitted)
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                # Submit button for single logo quiz
-                if not st.session_state.question_submitted:
-                    if st.button("✅ Submit Answer", key=f"submit_{current_q_idx}"):
-                        # Check the answer
-                        is_correct = check_logo_answer(user_input, question_data['correct_answer'], question_data['logo'].get('alt', []))
-                        
-                        if is_correct:
-                            st.session_state.score += 1
-                        
+                # Auto-submit if time runs out
+                if time_remaining == 0:
+                    if question_data.get('type') == 'single_logo_quiz':
+                        # For single logo quiz, store empty answer
                         st.session_state.answers.append({
                             'question': question_data['question'],
                             'type': 'single_logo_quiz',
                             'logo': question_data['logo'],
-                            'user_answer': user_input,
+                            'user_answer': '',
                             'correct_answer': question_data['correct_answer'],
-                            'is_correct': is_correct,
-                            'timed_out': False
+                            'is_correct': False,
+                            'timed_out': True
                         })
-                        
-                        st.session_state.question_submitted = True
-                        st.session_state.explanation_start_time = time.time()
-                        st.rerun()
-                
-                # Show answer feedback and explanation if submitted
-                if st.session_state.question_submitted:
-                    last_answer = st.session_state.answers[-1]
-                    is_correct = last_answer['is_correct']
-                    status_color = "#51cf66" if is_correct else "#ff6b6b"
-                    status_text = "✅ Correct!" if is_correct else "❌ Incorrect"
-                    
-                    st.markdown(f"""
-                        <div style="background: {'#f0fff4' if is_correct else '#fff5f5'}; 
-                                    border: 2px solid {'#9ae6b4' if is_correct else '#fed7d7'}; 
-                                    border-radius: 10px; padding: 1rem; margin: 1rem 0;">
-                            <div style="color: {status_color}; font-size: 1.3rem; font-weight: bold; text-align: center;">
-                                {status_text}
-                            </div>
-                            <div style="color: #2d3748; text-align: center; margin-top: 0.5rem;">
-                                <strong>Your answer:</strong> {last_answer['user_answer'] if last_answer['user_answer'] else 'No answer provided'}<br>
-                                <strong>Correct answer:</strong> {last_answer['correct_answer']}
-                            </div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Show explanation
-                    st.markdown(f"""
-                        <div class="explanation-card">
-                            <div class="explanation-title">💡 Explanation</div>
-                            <div class="explanation-text">
-                                Correct answer: {last_answer['correct_answer']}
-                            </div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Auto-proceed timer and manual button
-                    explanation_time_remaining = get_explanation_time_remaining()
-                    
-                    # Auto-proceed if time runs out
-                    if explanation_time_remaining <= 0:
-                        st.session_state.question_submitted = False
-                        st.session_state.current_question += 1
-                        
-                        if st.session_state.current_question < len(st.session_state.questions):
-                            st.session_state.start_time = time.time()
-                        else:
-                            st.session_state.quiz_completed = True
-                        st.rerun()
                     else:
-                        # Show countdown timer
-                        st.markdown(f"""
-                            <div style="text-align: center; margin: 1rem 0;">
-                                <p style="color: #667eea; font-size: 1.1rem;">
-                                    Auto-proceeding in <strong>{explanation_time_remaining}</strong> seconds...
-                                </p>
-                            </div>
-                        """, unsafe_allow_html=True)
-                    
-                    # Next question button
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if st.button("➡️ Next Question", key=f"next_{current_q_idx}"):
-                        st.session_state.question_submitted = False
-                        st.session_state.current_question += 1
-                        
-                        if st.session_state.current_question < len(st.session_state.questions):
-                            st.session_state.start_time = time.time()
-                        else:
-                            st.session_state.quiz_completed = True
-                        st.rerun()
-
-            else:
-                # Regular multiple choice question
-                st.markdown(f"""
-                    <div class="question-card">
-                        <h2 style="color: #000000;">{question_data['Question']}</h2>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                # Options
-                options = {
-                    'A': question_data['Option_A'],
-                    'B': question_data['Option_B'],
-                    'C': question_data['Option_C'],
-                    'D': question_data['Option_D']
-                }
-                
-                # Show options (disabled if submitted)
-                if not st.session_state.question_submitted:
-                    selected = st.radio(
-                        "Select your answer:",
-                        options.keys(),
-                        format_func=lambda x: f"{x}. {options[x]}",
-                        key=f"q_{current_q_idx}",
-                        index=None  # This prevents any option from being pre-selected
-                    )
-                else:
-                    # Show selected answer as disabled
-                    last_answer = st.session_state.answers[-1]
-                    selected = last_answer['selected']
-                    st.radio(
-                        "Select your answer:",
-                        options.keys(),
-                        format_func=lambda x: f"{x}. {options[x]}",
-                        key=f"q_{current_q_idx}_disabled",
-                        index=list(options.keys()).index(selected) if selected else None,
-                        disabled=True
-                    )
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                # Submit button
-                if not st.session_state.question_submitted:
-                    if st.button("✅ Submit Answer", key=f"submit_{current_q_idx}", disabled=selected is None):
-                        is_correct = selected == question_data['Correct_Answer']
-                        if is_correct:
-                            st.session_state.score += 1
-                        
                         st.session_state.answers.append({
                             'question': question_data['Question'],
-                            'selected': selected,
+                            'selected': None,
                             'correct': question_data['Correct_Answer'],
-                            'is_correct': is_correct,
+                            'is_correct': False,
                             'explanation': question_data['Explanation'],
-                            'timed_out': False
+                            'timed_out': True
                         })
-                        
-                        st.session_state.question_submitted = True
-                        st.session_state.explanation_start_time = time.time()
-                        st.rerun()
-                
-                # Show answer feedback and explanation if submitted
-                if st.session_state.question_submitted:
-                    last_answer = st.session_state.answers[-1]
-                    is_correct = last_answer['is_correct']
-                    status_color = "#51cf66" if is_correct else "#ff6b6b"
-                    status_text = "✅ Correct!" if is_correct else "❌ Incorrect"
-                    
+                    st.session_state.question_submitted = True
+                    st.session_state.explanation_start_time = time.time()
+                    st.rerun()
+            
+            # Question card
+            col1, col2, col3 = st.columns([1, 3, 1])
+            with col2:
+                if question_data.get('type') == 'single_logo_quiz':
+                    # Single logo quiz question (questions 7 and 8)
                     st.markdown(f"""
-                        <div style="background: {'#f0fff4' if is_correct else '#fff5f5'}; 
-                                    border: 2px solid {'#9ae6b4' if is_correct else '#fed7d7'}; 
-                                    border-radius: 10px; padding: 1rem; margin: 1rem 0;">
-                            <div style="color: {status_color}; font-size: 1.3rem; font-weight: bold; text-align: center;">
-                                {status_text}
-                            </div>
-                            <div style="color: #2d3748; text-align: center; margin-top: 0.5rem;">
-                                <strong>Your answer:</strong> {last_answer['selected']} &nbsp; | &nbsp;
-                                <strong>Correct answer:</strong> {last_answer['correct']}
-                            </div>
+                        <div class="question-card">
+                            <h2 style="color: #000000;">{question_data['question']}</h2>
                         </div>
                     """, unsafe_allow_html=True)
                     
-                    # Show explanation
-                    st.markdown(f"""
-                        <div class="explanation-card">
-                            <div class="explanation-title">💡 Explanation</div>
-                            <div class="explanation-text">
-                                {last_answer['explanation']}
-                            </div>
-                        </div>
-                    """, unsafe_allow_html=True)
+                    # Display the single logo in the center
+                    col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
+                    with col_img2:
+                        st.image(question_data['logo']['image'], width=200)
+                        user_input = st.text_input("Enter the logo name:", key=f"logo_{current_q_idx}", disabled=st.session_state.question_submitted)
                     
-                    # Auto-proceed timer and manual button
-                    explanation_time_remaining = get_explanation_time_remaining()
+                    st.markdown("<br>", unsafe_allow_html=True)
                     
-                    # Auto-proceed if time runs out
-                    if explanation_time_remaining <= 0:
-                        st.session_state.question_submitted = False
-                        st.session_state.current_question += 1
+                    # Submit button for single logo quiz
+                    if not st.session_state.question_submitted:
+                        if st.button("✅ Submit Answer", key=f"submit_{current_q_idx}"):
+                            # Check the answer
+                            is_correct = check_logo_answer(user_input, question_data['correct_answer'], question_data['logo'].get('alt', []))
+                            
+                            if is_correct:
+                                st.session_state.score += 1
+                            
+                            st.session_state.answers.append({
+                                'question': question_data['question'],
+                                'type': 'single_logo_quiz',
+                                'logo': question_data['logo'],
+                                'user_answer': user_input,
+                                'correct_answer': question_data['correct_answer'],
+                                'is_correct': is_correct,
+                                'timed_out': False
+                            })
+                            
+                            st.session_state.question_submitted = True
+                            st.session_state.explanation_start_time = time.time()
+                            st.rerun()
+                    
+                    # Show answer feedback and explanation if submitted
+                    if st.session_state.question_submitted:
+                        last_answer = st.session_state.answers[-1]
+                        is_correct = last_answer['is_correct']
+                        status_color = "#51cf66" if is_correct else "#ff6b6b"
+                        status_text = "✅ Correct!" if is_correct else "❌ Incorrect"
                         
-                        if st.session_state.current_question < len(st.session_state.questions):
-                            st.session_state.start_time = time.time()
-                        else:
-                            st.session_state.quiz_completed = True
-                        st.rerun()
-                    else:
-                        # Show countdown timer
                         st.markdown(f"""
-                            <div style="text-align: center; margin: 1rem 0;">
-                                <p style="color: #667eea; font-size: 1.1rem;">
-                                    Auto-proceeding in <strong>{explanation_time_remaining}</strong> seconds...
-                                </p>
+                            <div style="background: {'#f0fff4' if is_correct else '#fff5f5'}; 
+                                        border: 2px solid {'#9ae6b4' if is_correct else '#fed7d7'}; 
+                                        border-radius: 10px; padding: 1rem; margin: 1rem 0;">
+                                <div style="color: {status_color}; font-size: 1.3rem; font-weight: bold; text-align: center;">
+                                    {status_text}
+                                </div>
+                                <div style="color: #2d3748; text-align: center; margin-top: 0.5rem;">
+                                    <strong>Your answer:</strong> {last_answer['user_answer'] if last_answer['user_answer'] else 'No answer provided'}<br>
+                                    <strong>Correct answer:</strong> {last_answer['correct_answer']}
+                                </div>
                             </div>
                         """, unsafe_allow_html=True)
-                    
-                    # Next question button
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if st.button("➡️ Next Question", key=f"next_{current_q_idx}"):
-                        st.session_state.question_submitted = False
-                        st.session_state.current_question += 1
                         
-                        if st.session_state.current_question < len(st.session_state.questions):
-                            st.session_state.start_time = time.time()
+                        # Show explanation
+                        st.markdown(f"""
+                            <div class="explanation-card">
+                                <div class="explanation-title">💡 Explanation</div>
+                                <div class="explanation-text">
+                                    Correct answer: {last_answer['correct_answer']}
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Auto-proceed timer and manual button
+                        explanation_time_remaining = get_explanation_time_remaining()
+                        
+                        # Auto-proceed if time runs out
+                        if explanation_time_remaining <= 0:
+                            st.session_state.question_submitted = False
+                            st.session_state.current_question += 1
+                            
+                            if st.session_state.current_question < len(st.session_state.questions):
+                                st.session_state.start_time = time.time()
+                            else:
+                                st.session_state.quiz_completed = True
+                            st.rerun()
                         else:
-                            st.session_state.quiz_completed = True
-                        st.rerun()
-        
-        # Auto-scroll to bottom when explanation is shown
-        if st.session_state.question_submitted:
-            st.markdown("""
-                <script>
-                setTimeout(function() {
-                    scrollToBottom();
-                }, 100);
-                </script>
-            """, unsafe_allow_html=True)
-        
-        # Auto-refresh for timer (only if not submitted) or explanation timer
-        if not st.session_state.question_submitted:
-            time.sleep(1)
-            st.rerun()
-        elif st.session_state.question_submitted and st.session_state.explanation_start_time:
-            # Auto-refresh for explanation timer
-            time.sleep(1)
-            st.rerun()
-    
-# Results screen
-elif st.session_state.quiz_completed:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        # Calculate score based on attempted questions only
-        attempted_questions = [ans for ans in st.session_state.answers if ans.get('selected') is not None or ans.get('user_answer') or ans.get('timed_out')]
-        correct_answers = [ans for ans in attempted_questions if ans.get('is_correct', False)]
-        
-        total_attempted = len(attempted_questions)
-        total_correct = len(correct_answers)
-        
-        # Calculate percentage based on attempted questions, not total questions
-        if total_attempted > 0:
-            percentage_score = int((total_correct / total_attempted) * 100)
-        else:
-            percentage_score = 0
-        
-        st.markdown(f"""
-            <div class="result-card">
-                <h1 style="color: #667eea;">🎉 Quiz Completed!</h1>
-                <p style="font-size: 1.2rem; color: #4a5568; margin-bottom: 1rem;">
-                    Thank you for participating, <strong>{st.session_state.email}</strong>!
-                </p>
-                <div class="score-display">
-                    {total_correct} / {total_attempted}
-                </div>
-                <p style="font-size: 1.2rem; color: #4a5568;">
-                    You scored {percentage_score}% on attempted questions
-                </p>
-                <p style="font-size: 1rem; color: #718096;">
-                    Questions attempted: {total_attempted} out of {len(st.session_state.questions)}
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        
-        # Detailed results
-        st.markdown("""
-            <div class="question-card">
-                <h2 style="color: #667eea; text-align: center;">📊 Detailed Results</h2>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        for idx, answer in enumerate(st.session_state.answers, 1):
-            if answer.get('timed_out'):
-                status = "⏱️ Time's Up!"
-                color = "#ff6b6b"
-            elif answer.get('is_correct'):
-                status = "✅ Correct"
-                color = "#51cf66"
-            elif answer.get('selected') is None and not answer.get('user_answer'):
-                status = "⏭️ Not Attempted"
-                color = "#a0aec0"
-            else:
-                status = "❌ Incorrect"
-                color = "#ff6b6b"
-            
-            if answer.get('type') == 'single_logo_quiz':
-                # Single logo quiz result
-                st.markdown(f"""
-                    <div class="question-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h3 style="color: #000000; margin: 0;">Question {idx} (Logo Identification)</h3>
-                            <span style="color: {color}; font-weight: bold; font-size: 1.2rem;">{status}</span>
-                        </div>
-                        <p style="font-size: 1.1rem; margin: 1rem 0; color: #000000;"><strong>{answer['question']}</strong></p>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                # Display the single logo
-                col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
-                with col_img2:
-                    st.image(answer['logo']['image'], width=150)
-                    is_logo_correct = check_logo_answer(answer['user_answer'], answer['correct_answer'], answer['logo'].get('alt', []))
-                    answer_color = "#51cf66" if is_logo_correct else "#ff6b6b"
+                            # Show countdown timer
+                            st.markdown(f"""
+                                <div style="text-align: center; margin: 1rem 0;">
+                                    <p style="color: #667eea; font-size: 1.1rem;">
+                                        Auto-proceeding in <strong>{explanation_time_remaining}</strong> seconds...
+                                    </p>
+                                </div>
+                            """, unsafe_allow_html=True)
+                        
+                        # Next question button
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        if st.button("➡️ Next Question", key=f"next_{current_q_idx}"):
+                            st.session_state.question_submitted = False
+                            st.session_state.current_question += 1
+                            
+                            if st.session_state.current_question < len(st.session_state.questions):
+                                st.session_state.start_time = time.time()
+                            else:
+                                st.session_state.quiz_completed = True
+                            st.rerun()
+
+                else:
+                    # Regular multiple choice question
                     st.markdown(f"""
-                        <p style="color: {answer_color}; font-weight: bold; text-align: center;">
-                            Your answer: {answer['user_answer'] if answer['user_answer'] else 'No answer'}<br>
-                            Correct: {answer['correct_answer']}
-                        </p>
-                    """, unsafe_allow_html=True)
-            else:
-                # Regular question result
-                st.markdown(f"""
-                    <div class="question-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h3 style="color: #000000; margin: 0;">Question {idx}</h3>
-                            <span style="color: {color}; font-weight: bold; font-size: 1.2rem;">{status}</span>
+                        <div class="question-card">
+                            <h2 style="color: #000000;">{question_data['Question']}</h2>
                         </div>
-                        <p style="font-size: 1.1rem; margin: 1rem 0; color: #000000;"><strong>{answer['question']}</strong></p>
-                        <p style="color: #000000;">
-                            <strong>Your answer:</strong> {answer.get('selected', 'No answer (timeout)')}<br>
-                            <strong>Correct answer:</strong> {answer['correct']}
-                        </p>
-                        {f'<p style="color: #000000; margin-top: 1rem;"><em>{answer.get("explanation", "")}</em></p>' if answer.get('selected') is not None and not answer.get('timed_out') else ''}
-                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Options
+                    options = {
+                        'A': question_data['Option_A'],
+                        'B': question_data['Option_B'],
+                        'C': question_data['Option_C'],
+                        'D': question_data['Option_D']
+                    }
+                    
+                    # Show options (disabled if submitted)
+                    if not st.session_state.question_submitted:
+                        selected = st.radio(
+                            "Select your answer:",
+                            options.keys(),
+                            format_func=lambda x: f"{x}. {options[x]}",
+                            key=f"q_{current_q_idx}",
+                            index=None  # This prevents any option from being pre-selected
+                        )
+                    else:
+                        # Show selected answer as disabled
+                        last_answer = st.session_state.answers[-1]
+                        selected = last_answer['selected']
+                        st.radio(
+                            "Select your answer:",
+                            options.keys(),
+                            format_func=lambda x: f"{x}. {options[x]}",
+                            key=f"q_{current_q_idx}_disabled",
+                            index=list(options.keys()).index(selected) if selected else None,
+                            disabled=True
+                        )
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    
+                    # Submit button
+                    if not st.session_state.question_submitted:
+                        if st.button("✅ Submit Answer", key=f"submit_{current_q_idx}", disabled=selected is None):
+                            is_correct = selected == question_data['Correct_Answer']
+                            if is_correct:
+                                st.session_state.score += 1
+                            
+                            st.session_state.answers.append({
+                                'question': question_data['Question'],
+                                'selected': selected,
+                                'correct': question_data['Correct_Answer'],
+                                'is_correct': is_correct,
+                                'explanation': question_data['Explanation'],
+                                'timed_out': False
+                            })
+                            
+                            st.session_state.question_submitted = True
+                            st.session_state.explanation_start_time = time.time()
+                            st.rerun()
+                    
+                    # Show answer feedback and explanation if submitted
+                    if st.session_state.question_submitted:
+                        last_answer = st.session_state.answers[-1]
+                        is_correct = last_answer['is_correct']
+                        status_color = "#51cf66" if is_correct else "#ff6b6b"
+                        status_text = "✅ Correct!" if is_correct else "❌ Incorrect"
+                        
+                        st.markdown(f"""
+                            <div style="background: {'#f0fff4' if is_correct else '#fff5f5'}; 
+                                        border: 2px solid {'#9ae6b4' if is_correct else '#fed7d7'}; 
+                                        border-radius: 10px; padding: 1rem; margin: 1rem 0;">
+                                <div style="color: {status_color}; font-size: 1.3rem; font-weight: bold; text-align: center;">
+                                    {status_text}
+                                </div>
+                                <div style="color: #2d3748; text-align: center; margin-top: 0.5rem;">
+                                    <strong>Your answer:</strong> {last_answer['selected']} &nbsp; | &nbsp;
+                                    <strong>Correct answer:</strong> {last_answer['correct']}
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Show explanation
+                        st.markdown(f"""
+                            <div class="explanation-card">
+                                <div class="explanation-title">💡 Explanation</div>
+                                <div class="explanation-text">
+                                    {last_answer['explanation']}
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Auto-proceed timer and manual button
+                        explanation_time_remaining = get_explanation_time_remaining()
+                        
+                        # Auto-proceed if time runs out
+                        if explanation_time_remaining <= 0:
+                            st.session_state.question_submitted = False
+                            st.session_state.current_question += 1
+                            
+                            if st.session_state.current_question < len(st.session_state.questions):
+                                st.session_state.start_time = time.time()
+                            else:
+                                st.session_state.quiz_completed = True
+                            st.rerun()
+                        else:
+                            # Show countdown timer
+                            st.markdown(f"""
+                                <div style="text-align: center; margin: 1rem 0;">
+                                    <p style="color: #667eea; font-size: 1.1rem;">
+                                        Auto-proceeding in <strong>{explanation_time_remaining}</strong> seconds...
+                                    </p>
+                                </div>
+                            """, unsafe_allow_html=True)
+                        
+                        # Next question button
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        if st.button("➡️ Next Question", key=f"next_{current_q_idx}"):
+                            st.session_state.question_submitted = False
+                            st.session_state.current_question += 1
+                            
+                            if st.session_state.current_question < len(st.session_state.questions):
+                                st.session_state.start_time = time.time()
+                            else:
+                                st.session_state.quiz_completed = True
+                            st.rerun()
+            
+            # Auto-scroll to bottom when explanation is shown
+            if st.session_state.question_submitted:
+                st.markdown("""
+                    <script>
+                    setTimeout(function() {
+                        scrollToBottom();
+                    }, 100);
+                    </script>
                 """, unsafe_allow_html=True)
+            
+            # Auto-refresh for timer (only if not submitted) or explanation timer
+            if not st.session_state.question_submitted:
+                time.sleep(1)
+                st.rerun()
+            elif st.session_state.question_submitted and st.session_state.explanation_start_time:
+                # Auto-refresh for explanation timer
+                time.sleep(1)
+                st.rerun()
+        
+    # Results screen
+    elif st.session_state.quiz_completed:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            # Calculate score based on attempted questions only
+            attempted_questions = [ans for ans in st.session_state.answers if ans.get('selected') is not None or ans.get('user_answer') or ans.get('timed_out')]
+            correct_answers = [ans for ans in attempted_questions if ans.get('is_correct', False)]
+            
+            total_attempted = len(attempted_questions)
+            total_correct = len(correct_answers)
+            total_time = calculate_total_time()
+
+            # Store the quiz result
+            store_quiz_result(
+                email=st.session_state.email,
+                score=st.session_state.score,
+                total_questions=len(st.session_state.questions),
+                attempted_questions=total_attempted,
+                correct_answers=total_correct,
+                answers_data=st.session_state.answers,
+                time_taken=total_time
+            )
+            
+            # Calculate percentage based on attempted questions, not total questions
+            if total_attempted > 0:
+                percentage_score = int((total_correct / total_attempted) * 100)
+            else:
+                percentage_score = 0
+            
+            st.markdown(f"""
+                <div class="result-card">
+                    <h1 style="color: #667eea;">🎉 Quiz Completed!</h1>
+                    <p style="font-size: 1.2rem; color: #4a5568; margin-bottom: 1rem;">
+                        Thank you for participating, <strong>{st.session_state.email}</strong>!
+                    </p>
+                    <div class="score-display">
+                        {total_correct} / {total_attempted}
+                    </div>
+                    <p style="font-size: 1.2rem; color: #4a5568;">
+                        You scored {percentage_score}% on attempted questions
+                    </p>
+                    <p style="font-size: 1rem; color: #718096;">
+                        Questions attempted: {total_attempted} out of {len(st.session_state.questions)}
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Add leaderboard button in the result section
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+            with col_btn2:
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("🏆 View Leaderboard", use_container_width=True):
+                    st.session_state.current_page = "leaderboard"
+                    st.query_params["page"] = "leaderboard"
+                    st.rerun()
+            
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            
+            # Detailed results
+            st.markdown("""
+                <div class="question-card">
+                    <h2 style="color: #667eea; text-align: center;">📊 Detailed Results</h2>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            for idx, answer in enumerate(st.session_state.answers, 1):
+                if answer.get('timed_out'):
+                    status = "⏱️ Time's Up!"
+                    color = "#ff6b6b"
+                elif answer.get('is_correct'):
+                    status = "✅ Correct"
+                    color = "#51cf66"
+                elif answer.get('selected') is None and not answer.get('user_answer'):
+                    status = "⏭️ Not Attempted"
+                    color = "#a0aec0"
+                else:
+                    status = "❌ Incorrect"
+                    color = "#ff6b6b"
+                
+                if answer.get('type') == 'single_logo_quiz':
+                    # Single logo quiz result
+                    st.markdown(f"""
+                        <div class="question-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3 style="color: #000000; margin: 0;">Question {idx} (Logo Identification)</h3>
+                                <span style="color: {color}; font-weight: bold; font-size: 1.2rem;">{status}</span>
+                            </div>
+                            <p style="font-size: 1.1rem; margin: 1rem 0; color: #000000;"><strong>{answer['question']}</strong></p>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Display the single logo
+                    col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
+                    with col_img2:
+                        st.image(answer['logo']['image'], width=150)
+                        is_logo_correct = check_logo_answer(answer['user_answer'], answer['correct_answer'], answer['logo'].get('alt', []))
+                        answer_color = "#51cf66" if is_logo_correct else "#ff6b6b"
+                        st.markdown(f"""
+                            <p style="color: {answer_color}; font-weight: bold; text-align: center;">
+                                Your answer: {answer['user_answer'] if answer['user_answer'] else 'No answer'}<br>
+                                Correct: {answer['correct_answer']}
+                            </p>
+                        """, unsafe_allow_html=True)
+                else:
+                    # Regular question result
+                    st.markdown(f"""
+                        <div class="question-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3 style="color: #000000; margin: 0;">Question {idx}</h3>
+                                <span style="color: {color}; font-weight: bold; font-size: 1.2rem;">{status}</span>
+                            </div>
+                            <p style="font-size: 1.1rem; margin: 1rem 0; color: #000000;"><strong>{answer['question']}</strong></p>
+                            <p style="color: #000000;">
+                                <strong>Your answer:</strong> {answer.get('selected', 'No answer (timeout)')}<br>
+                                <strong>Correct answer:</strong> {answer['correct']}
+                            </p>
+                            {f'<p style="color: #000000; margin-top: 1rem;"><em>{answer.get("explanation", "")}</em></p>' if answer.get('selected') is not None and not answer.get('timed_out') else ''}
+                        </div>
+                    """, unsafe_allow_html=True)
+
+if __name__ == "__main__":
+    main()
