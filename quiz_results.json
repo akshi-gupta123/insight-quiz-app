@@ -1,0 +1,186 @@
+{
+  "quiz_attempts": [
+    {
+      "email": "akshi@spglobal.com",
+      "score": 2,
+      "total_questions": 8,
+      "attempted_questions": 8,
+      "correct_answers": 2,
+      "percentage": 25,
+      "timestamp": "2025-10-07T11:21:16.239651",
+      "time_taken_seconds": 4,
+      "answers": [
+        {
+          "question": "You're building a handwriting recognition app. Which feature might surprisingly help?",
+          "selected": "D",
+          "correct": "D",
+          "is_correct": true,
+          "explanation": "All listed features can provide useful patterns to improve handwriting recognition.",
+          "timed_out": false
+        },
+        {
+          "question": "Which of the following is NOT a type of AI?",
+          "selected": "A",
+          "correct": "D",
+          "is_correct": false,
+          "explanation": "Quantum AI refers to using quantum computing for AI applications, not a type of AI itself. The three types of AI are Narrow AI (specialized in specific tasks), General AI (human-level intelligence across domains), and Super AI (surpassing human intelligence).",
+          "timed_out": false
+        },
+        {
+          "question": "S&P Global Market Intelligence deals with messy, unstructured data. Which AI tool is best for extracting insights?",
+          "selected": "A",
+          "correct": "C",
+          "is_correct": false,
+          "explanation": "NLP interprets text (news, filings, reports). OCR just scans text, and VR/vision don't solve meaning extraction.",
+          "timed_out": false
+        },
+        {
+          "question": "What does 'alpha' refer to in quantitative finance and AI trading?",
+          "selected": "B",
+          "correct": "B",
+          "is_correct": true,
+          "explanation": "Alpha represents the excess return of an investment relative to a benchmark index, a key metric for evaluating trading strategies.",
+          "timed_out": false
+        },
+        {
+          "question": "Which AI system first used the concept of 'knowledge representation'?",
+          "selected": "B",
+          "correct": "A",
+          "is_correct": false,
+          "explanation": "SHRDLU, developed by Terry Winograd in 1968-1970, was a pioneering natural language understanding program that used knowledge representation to manipulate virtual blocks based on text commands.",
+          "timed_out": false
+        },
+        {
+          "question": "What was the estimated cost to train GPT-4?",
+          "selected": "B",
+          "correct": "C",
+          "is_correct": false,
+          "explanation": "Training GPT-4 is estimated to have cost around $100 million, considering compute resources, electricity, and infrastructure. This highlights the massive investment required for cutting-edge AI development.",
+          "timed_out": false
+        },
+        {
+          "question": "Identify the following logo:",
+          "type": "single_logo_quiz",
+          "logo": {
+            "name": "Keras",
+            "image": "https://raw.githubusercontent.com/abhishek-garg-ai/fruit-finder/main/lib/logos/keras.png",
+            "alt": [
+              "keras"
+            ]
+          },
+          "user_answer": "a",
+          "correct_answer": "Keras",
+          "is_correct": false,
+          "timed_out": false
+        },
+        {
+          "question": "Identify the following logo:",
+          "type": "single_logo_quiz",
+          "logo": {
+            "name": "Apache Spark",
+            "image": "https://raw.githubusercontent.com/abhishek-garg-ai/fruit-finder/main/lib/logos/apache-spark.png",
+            "alt": [
+              "spark",
+              "apache spark"
+            ]
+          },
+          "user_answer": "a",
+          "correct_answer": "Apache Spark",
+          "is_correct": false,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "email": "akshi@spglobal.com",
+      "score": 2,
+      "total_questions": 8,
+      "attempted_questions": 8,
+      "correct_answers": 2,
+      "percentage": 25,
+      "timestamp": "2025-10-07T11:21:18.772071",
+      "time_taken_seconds": 7,
+      "answers": [
+        {
+          "question": "You're building a handwriting recognition app. Which feature might surprisingly help?",
+          "selected": "D",
+          "correct": "D",
+          "is_correct": true,
+          "explanation": "All listed features can provide useful patterns to improve handwriting recognition.",
+          "timed_out": false
+        },
+        {
+          "question": "Which of the following is NOT a type of AI?",
+          "selected": "A",
+          "correct": "D",
+          "is_correct": false,
+          "explanation": "Quantum AI refers to using quantum computing for AI applications, not a type of AI itself. The three types of AI are Narrow AI (specialized in specific tasks), General AI (human-level intelligence across domains), and Super AI (surpassing human intelligence).",
+          "timed_out": false
+        },
+        {
+          "question": "S&P Global Market Intelligence deals with messy, unstructured data. Which AI tool is best for extracting insights?",
+          "selected": "A",
+          "correct": "C",
+          "is_correct": false,
+          "explanation": "NLP interprets text (news, filings, reports). OCR just scans text, and VR/vision don't solve meaning extraction.",
+          "timed_out": false
+        },
+        {
+          "question": "What does 'alpha' refer to in quantitative finance and AI trading?",
+          "selected": "B",
+          "correct": "B",
+          "is_correct": true,
+          "explanation": "Alpha represents the excess return of an investment relative to a benchmark index, a key metric for evaluating trading strategies.",
+          "timed_out": false
+        },
+        {
+          "question": "Which AI system first used the concept of 'knowledge representation'?",
+          "selected": "B",
+          "correct": "A",
+          "is_correct": false,
+          "explanation": "SHRDLU, developed by Terry Winograd in 1968-1970, was a pioneering natural language understanding program that used knowledge representation to manipulate virtual blocks based on text commands.",
+          "timed_out": false
+        },
+        {
+          "question": "What was the estimated cost to train GPT-4?",
+          "selected": "B",
+          "correct": "C",
+          "is_correct": false,
+          "explanation": "Training GPT-4 is estimated to have cost around $100 million, considering compute resources, electricity, and infrastructure. This highlights the massive investment required for cutting-edge AI development.",
+          "timed_out": false
+        },
+        {
+          "question": "Identify the following logo:",
+          "type": "single_logo_quiz",
+          "logo": {
+            "name": "Keras",
+            "image": "https://raw.githubusercontent.com/abhishek-garg-ai/fruit-finder/main/lib/logos/keras.png",
+            "alt": [
+              "keras"
+            ]
+          },
+          "user_answer": "a",
+          "correct_answer": "Keras",
+          "is_correct": false,
+          "timed_out": false
+        },
+        {
+          "question": "Identify the following logo:",
+          "type": "single_logo_quiz",
+          "logo": {
+            "name": "Apache Spark",
+            "image": "https://raw.githubusercontent.com/abhishek-garg-ai/fruit-finder/main/lib/logos/apache-spark.png",
+            "alt": [
+              "spark",
+              "apache spark"
+            ]
+          },
+          "user_answer": "a",
+          "correct_answer": "Apache Spark",
+          "is_correct": false,
+          "timed_out": false
+        }
+      ]
+    }
+  ]
+}
